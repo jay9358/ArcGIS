@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArcGIS Distance Measurement</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.30/"></script>
+    <script type="module" src="https://js.arcgis.com/map-components/4.30/arcgis-map-components.esm.js"></script> <!-- Use the latest version -->
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div id="distanceDisplay">Distance: </div>
+</body>
+<script>
+  require([
+    "esri/config",
+    "esri/Map",
+    "esri/views/MapView",
+
+    "esri/Graphic",
+      "esri/rest/route",
+      "esri/rest/support/RouteParameters",
+      "esri/rest/support/FeatureSet"
+
+  ], function(esriConfig, Map, MapView, Graphic, route, RouteParameters, FeatureSet) {
+
+
+      esriConfig.apiKey = "AAPT3NKHt6i2urmWtqOuugvr9RW5A9sPaAcaMxgsmd0VotSc5WqhzAgmKKU5P0osikIuocT01qmnZecvabGpHWTDKKVWJtxHUkE-obsRp31HSTfaByX4vyabdxHFUMJIVf2aGyO3UWPnyABy7ug9Z1PgUsrf4pHWo0gCNhwXApKXwZZzY-N6qLdtZ86pYR2_LbINmdhwlXoZ1UJsBv8Dg0ZV7DvHKQCEbyrmAhxQRXRDLZ4.";
+
+      const map = new Map({
+      basemap: "arcgis/navigation" // basemap styles service
+    });
+      const view = new MapView({
+          map: map,
+          center: [77.216721,28.644800], // Longitude, latitude
+          zoom: 13, // Zoom level
+          container: "viewDiv" // Div element
+        });
+        const routeUrl = "https://route-api.arcgis.com/arcgis/rest/services/World/Route/NAServer/Route_World";
+        view.on("click", function(event){
+          if (view.graphics.length === 0) {
+        addGraphic("origin", event.mapPoint);
+      } else if (view.graphics.length === 1) {
+        addGraphic("destination", event.mapPoint);
+        getRoute(); // Call the route service
+      } else {
+        view.graphics.removeAll();
+        addGraphic("origin",event.mapPoint);
+      }
+        }); 
+        function addGraphic(type, point) {
+      const graphic = new Graphic({
+        symbol: {
+          type: "simple-marker",
+          color: (type === "origin") ? "white" : "black",
+          size: "8px"
+        },
+        geometry: point
+      });
+      view.graphics.add(graphic);
+    }
+    function getRoute() {
+      const routeParams = new RouteParameters({
+        stops: new FeatureSet({
+          features: view.graphics.toArray()
+        }),
+
+      });
+      route.solve(routeUrl, routeParams)
+        .then(function(data) {
+          data.routeResults.forEach(function(result) {
+            result.route.symbol = {
+              type: "simple-line",
+              color: [5, 150, 255],
+              width: 3
+            };
+            view.graphics.add(result.route);
+            console.log(result.route.attributes);
+            const distance = result.route.attributes.Total_Kilometers; // Distance in meters
+              if (distance !== undefined) {
+                // Convert meters to miles (1 meter = 0.000621371 miles)
+               
+                document.getElementById('distanceDisplay').innerText = `Distance: ${distance.toFixed(2)} km`;
+              } else {
+                document.getElementById('distanceDisplay').innerText = "Distance: Not available";
+              }
+          });
+
+        })
+
+
+    }
+});
+  </script>
+</html>
